@@ -9,10 +9,14 @@ using System.Threading;
 using PcapDotNet.Core;
 using PcapDotNet.Packets;
 
+
 namespace MS101VBN_A
-{
+{ 
+
     public class QoS
     {
+        public int lengthOfPacket = 0;
+
         // This method that will be called when the thread is started
         public void Speed()
         {
@@ -20,10 +24,17 @@ namespace MS101VBN_A
             {
                 // Put the Main thread to sleep for 1 second
                 Thread.Sleep(1000);
-                Console.WriteLine("Alpha.Beta is running in its own thread.");
+                int tmp;
+                lock (this)
+                {
+                    tmp = lengthOfPacket;
+                    lengthOfPacket = 0;
+                }
+                tmp = (tmp * 8);
+                Console.WriteLine("speed avg = " + tmp + "bps");
             }
         }
-    };
+    }
 
     class Program
     {
@@ -99,18 +110,42 @@ namespace MS101VBN_A
             {
                 Console.WriteLine("Listening on " + selectedDevice.Description + "...");
 
+                Packet packet, tmpPacket;
+                do
+                {
+                    PacketCommunicatorReceiveResult result = communicator.ReceivePacket(out packet);
+                    switch (result)
+                    {
+                        case PacketCommunicatorReceiveResult.Timeout:
+                            // Timeout elapsed
+                            continue;
+                        case PacketCommunicatorReceiveResult.Ok:
+                            //Console.WriteLine(packet.Timestamp.ToString("yyyy-MM-dd hh:mm:ss.fff") + " length:" + packet.Length);
+                            lock (qos)
+                            {
+                                tmpPacket  = packet;
+                            }
+                            qos.lengthOfPacket += tmpPacket.Length;
+                            Console.WriteLine("IP S: " + tmpPacket.IpV4.Source + " , IP D: " + tmpPacket.IpV4.Destination);
+                            break;
+                        default:
+                            throw new InvalidOperationException("The result " + result + " shoudl never be reached here");
+                    }
+                } while (true);
+
                 // start the capture
-                communicator.ReceivePackets(0, PacketHandler);
+                //communicator.ReceivePackets(0, PacketHandler);
             }
 
 
-            Console.ReadKey();
+           // Console.ReadKey();
         }
 
         // Callback function invoked by Pcap.Net for every incoming packet
         private static void PacketHandler(Packet packet)
         {
-            Console.WriteLine(packet.Timestamp.ToString("yyyy-MM-dd hh:mm:ss.fff") + " length:" + packet.Length);
+            Console.WriteLine(packet.Timestamp.ToString("yyyy-MM-dd hh:mm:ss.fff") + " length:" + packet.Length);    
+            
         }
 
         // Print all the available information on the given interface
