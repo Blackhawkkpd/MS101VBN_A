@@ -12,10 +12,10 @@ using PcapDotNet.Packets;
 
 namespace MS101VBN_A
 { 
-
     public class QoS
     {
-        public int lengthOfPacket = 0;
+        public static int lengthOfPacketU = 0;
+        public static int lengthOfPacketD = 0;
 
         // This method that will be called when the thread is started
         public void Speed()
@@ -24,24 +24,29 @@ namespace MS101VBN_A
             {
                 // Put the Main thread to sleep for 1 second
                 Thread.Sleep(1000);
-                int tmp;
+                int tmpU, tmpD;
                 lock (this)
                 {
-                    tmp = lengthOfPacket;
-                    lengthOfPacket = 0;
+                    tmpU = lengthOfPacketU;
+                    tmpD = lengthOfPacketD;
+                    lengthOfPacketD = 0;
+                    lengthOfPacketU = 0;
                 }
-                tmp = (tmp * 8);
-                Console.WriteLine("speed avg = " + tmp + "bps");
+                tmpU = (tmpU * 8);
+                tmpD = (tmpD * 8);
+                Console.Write("Upload speed avg = " + tmpU / 1000 + "kbps\t\t\t");
+                Console.WriteLine("Download speed avg = " + tmpD / 1000 + "kbps");
             }
         }
     }
 
     class Program
     {
+        private static PacketDevice selectedDevice;
+
         static void Main(string[] args)
         {
             QoS qos = new QoS();
-
             Console.WriteLine("Hellow world");
             
             // Create the thread object, passing in the Alpha.Beta method
@@ -98,18 +103,20 @@ namespace MS101VBN_A
             //Console.WriteLine(deviceIndex.ToString());
 
             // Take the selected adapter
-            PacketDevice selectedDevice = allDevices[deviceIndex - 1];
+            selectedDevice = allDevices[deviceIndex - 1];
 
+            //Console.WriteLine(selectedDevice.Addresses[1].Address);
+            //Console.ReadKey();
             // Open the device
 
             // 65536                                    - portion of the packet to capture 65536 guarantees that the whole packet 
             //                                             will be captured on all the link layers
             // PacketDeviceOpenAttributes.Promiscuous   - promiscuous mode
             // 1000                                     - read timeout
-            using (PacketCommunicator communicator = selectedDevice.Open(65536, PacketDeviceOpenAttributes.Promiscuous, 1000))                                                    
+            using (PacketCommunicator communicator = selectedDevice.Open(65536, PacketDeviceOpenAttributes.NoCaptureRemote, 1000))                                                    
             {
                 Console.WriteLine("Listening on " + selectedDevice.Description + "...");
-
+                /*
                 Packet packet, tmpPacket;
                 do
                 {
@@ -125,27 +132,48 @@ namespace MS101VBN_A
                             {
                                 tmpPacket  = packet;
                             }
-                            qos.lengthOfPacket += tmpPacket.Length;
+                            //qos.lengthOfPacket += tmpPacket.Length;
                             Console.WriteLine("IP S: " + tmpPacket.IpV4.Source + " , IP D: " + tmpPacket.IpV4.Destination);
                             break;
                         default:
                             throw new InvalidOperationException("The result " + result + " shoudl never be reached here");
                     }
                 } while (true);
-
+                */
                 // start the capture
-                //communicator.ReceivePackets(0, PacketHandler);
+                communicator.ReceivePackets(0, PacketHandler);
+                //communicator.ReceiveStatistics(0, StatiscitsHandler);
             }
 
 
            // Console.ReadKey();
         }
 
+        private static void StatiscitsHandler(PacketSampleStatistics stat)
+        {
+            Console.WriteLine("speed from stat : " + stat.AcceptedBytes.ToString());
+        }
+
         // Callback function invoked by Pcap.Net for every incoming packet
         private static void PacketHandler(Packet packet)
         {
-            Console.WriteLine(packet.Timestamp.ToString("yyyy-MM-dd hh:mm:ss.fff") + " length:" + packet.Length);    
-            
+            string packsource = packet.Ethernet.IpV4.Source.ToString();
+            string packdeviceip = selectedDevice.Addresses[1].Address.ToString().Remove(0,9);
+
+            //download packets 
+            if( packsource.Equals(packdeviceip) )
+            {
+                QoS.lengthOfPacketU += packet.Length;
+            }
+
+            //upload packets
+            else
+            {
+                QoS.lengthOfPacketD += packet.Length;
+            }
+            //Console.WriteLine(packet.Ethernet.IpV4.Source + "  " + packet.Ethernet.IpV4.Destination + " " + packet.Ethernet.IpV4.Tcp.SourcePort);
+            //Console.WriteLine(packet.Ethernet.IpV4.Source + "  " + packet.Ethernet.IpV4.Destination + " " + packet.Ethernet.IpV4.Tcp.SourcePort);
+            //Console.WriteLine(packet.Timestamp.ToString("yyyy-MM-dd hh:mm:ss.fff") + " length:" + packet.Length);               
         }
 
         // Print all the available information on the given interface
