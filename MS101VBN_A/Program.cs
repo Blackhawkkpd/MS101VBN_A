@@ -30,7 +30,7 @@ namespace MS101VBN_A
                     tmpU = lengthOfPacketU;
                     tmpD = lengthOfPacketD;
                     lengthOfPacketD = 0;
-                    lengthOfPacketU = 0;
+                    lengthOfPacketU = 0; 
                 }
                 tmpU = (tmpU * 8);
                 tmpD = (tmpD * 8);
@@ -47,6 +47,8 @@ namespace MS101VBN_A
         static void Main(string[] args)
         {
             QoS qos = new QoS();
+
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Hellow world");
             
             // Create the thread object, passing in the Alpha.Beta method
@@ -54,9 +56,9 @@ namespace MS101VBN_A
             Thread speedCalThrd = new Thread(new ThreadStart(qos.Speed));
 
             // Start the thread
-            speedCalThrd.Start();
             
             Console.ReadKey();
+
 
             // Request that oThread be stopped
             //speedCalThrd.Abort();
@@ -88,6 +90,7 @@ namespace MS101VBN_A
                     Console.WriteLine(" (No description available)");
             }
 
+            
             int deviceIndex = 0;
             do
             {
@@ -99,6 +102,7 @@ namespace MS101VBN_A
                     deviceIndex = 0;
                 }
             } while (deviceIndex == 0);
+            speedCalThrd.Start();
             //test read value.
             //Console.WriteLine(deviceIndex.ToString());
 
@@ -143,7 +147,7 @@ namespace MS101VBN_A
                 // start the capture
                 communicator.ReceivePackets(0, PacketHandler);
                 //communicator.ReceiveStatistics(0, StatiscitsHandler);
-            }
+            }  
 
 
            // Console.ReadKey();
